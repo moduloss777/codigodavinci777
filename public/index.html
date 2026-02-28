@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel - Acortador de URLs</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f0f1a; color: #e0e0e0; min-height: 100vh; }
+    .header { background: linear-gradient(135deg, #1a1a2e, #16213e); padding: 20px 30px; border-bottom: 1px solid #2a2a4a; display: flex; align-items: center; gap: 15px; }
+    .header h1 { font-size: 1.4rem; color: #7c6ff5; }
+    .badge { background: #7c6ff5; color: white; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; }
+    .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
+    .card { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 12px; padding: 25px; margin-bottom: 25px; }
+    .card h2 { color: #7c6ff5; margin-bottom: 18px; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 6px; }
+    input, select { width: 100%; padding: 10px 14px; background: #0f0f1a; border: 1px solid #2a2a4a; border-radius: 8px; color: #e0e0e0; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
+    input:focus { border-color: #7c6ff5; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    button { padding: 10px 22px; background: #7c6ff5; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; transition: background 0.2s; }
+    button:hover { background: #6a5fd4; }
+    button.danger { background: #e74c3c; }
+    button.danger:hover { background: #c0392b; }
+    .result { margin-top: 15px; padding: 12px 16px; background: #0f0f1a; border-radius: 8px; border-left: 3px solid #7c6ff5; font-size: 0.85rem; word-break: break-all; display: none; }
+    .result.show { display: block; }
+    .result.error { border-color: #e74c3c; color: #e74c3c; }
+    .links-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .links-table th { text-align: left; padding: 10px; color: #7c6ff5; border-bottom: 1px solid #2a2a4a; }
+    .links-table td { padding: 10px; border-bottom: 1px solid #1a1a2e; color: #ccc; }
+    .links-table tr:hover td { background: #16213e; }
+    .copy-btn { padding: 4px 10px; font-size: 0.75rem; background: #2a2a4a; border-radius: 5px; cursor: pointer; border: none; color: #7c6ff5; }
+    .copy-btn:hover { background: #3a3a6a; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; background: #2a2a4a; color: #aaa; }
+    .bulk-output { max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.8rem; line-height: 1.8; }
+    .export-btn { margin-top: 10px; background: #16213e; border: 1px solid #2a2a4a; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🔗 Acortador de URLs</h1>
+  <span class="badge">Panel Admin</span>
+</div>
+
+<div class="container">
+
+  <!-- API KEY -->
+  <div class="card">
+    <h2>🔑 Autenticación</h2>
+    <div class="form-group">
+      <label>API Key (ADMIN_KEY del .env)</label>
+      <input type="password" id="apiKey" placeholder="Ingresa tu clave de admin" value="">
+    </div>
+  </div>
+
+  <!-- CREAR ENLACE ÚNICO -->
+  <div class="card">
+    <h2>➕ Crear enlace único</h2>
+    <div class="form-group">
+      <label>URL Destino</label>
+      <input type="url" id="singleUrl" placeholder="https://tu-sitio.com/pagina">
+    </div>
+    <div class="form-group">
+      <label>Código personalizado (opcional)</label>
+      <input type="text" id="singleCode" placeholder="mi-codigo (se genera automático si está vacío)">
+    </div>
+    <button onclick="createSingle()">Crear enlace</button>
+    <div class="result" id="singleResult"></div>
+  </div>
+
+  <!-- GENERACIÓN MASIVA -->
+  <div class="card">
+    <h2>⚡ Generación masiva</h2>
+    <div class="row">
+      <div class="form-group">
+        <label>URL Destino (todos apuntarán aquí)</label>
+        <input type="url" id="bulkUrl" placeholder="https://tu-sitio.com/pagina">
+      </div>
+      <div class="form-group">
+        <label>Cantidad de enlaces a generar</label>
+        <input type="number" id="bulkCount" value="10" min="1" max="5000">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Prefijo de códigos (opcional, ej: "promo-")</label>
+      <input type="text" id="bulkPrefix" placeholder="promo-">
+    </div>
+    <button onclick="generateBulk()">⚡ Generar enlaces</button>
+    <div class="result" id="bulkResult">
+      <div class="bulk-output" id="bulkOutput"></div>
+      <button class="export-btn" onclick="exportTxt()">📥 Exportar .txt</button>
+    </div>
+  </div>
+
+  <!-- LISTAR ENLACES -->
+  <div class="card">
+    <h2>📋 Todos los enlaces</h2>
+    <button onclick="listLinks()">🔄 Cargar enlaces</button>
+    <div style="margin-top:15px; overflow-x:auto;">
+      <table class="links-table" id="linksTable" style="display:none">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>URL Corta</th>
+            <th>Destino</th>
+            <th>Visitas</th>
+            <th>Fecha</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody id="linksBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API = '';
+  let lastBulkLinks = [];
+
+  function getKey() { return document.getElementById('apiKey').value; }
+
+  async function createSingle() {
+    const url = document.getElementById('singleUrl').value;
+    const code = document.getElementById('singleCode').value;
+    const res = await fetch(`${API}/api/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': getKey() },
+      body: JSON.stringify({ url, code })
+    });
+    const data = await res.json();
+    const el = document.getElementById('singleResult');
+    el.className = 'result show' + (res.ok ? '' : ' error');
+    el.innerHTML = res.ok
+      ? `✅ Enlace creado: <strong><a href="${data.short}" target="_blank" style="color:#7c6ff5">${data.short}</a></strong> <button class="copy-btn" onclick="navigator.clipboard.writeText('${data.short}')">Copiar</button>`
+      : `❌ ${data.error}`;
+  }
+
+  async function generateBulk() {
+    const url = document.getElementById('bulkUrl').value;
+    const count = parseInt(document.getElementById('bulkCount').value);
+    const prefix = document.getElementById('bulkPrefix').value;
+    const res = await fetch(`${API}/api/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': getKey() },
+      body: JSON.stringify({ url, count, prefix })
+    });
+    const data = await res.json();
+    const el = document.getElementById('bulkResult');
+    const output = document.getElementById('bulkOutput');
+    if (!res.ok) { el.className = 'result show error'; output.textContent = data.error; return; }
+    lastBulkLinks = data.links;
+    el.className = 'result show';
+    output.innerHTML = `✅ <strong>${data.total} enlaces generados</strong> → ${url}<br><br>` +
+      data.links.map(l => `<span style="color:#7c6ff5">${l.short}</span>`).join('<br>');
+  }
+
+  function exportTxt() {
+    const text = lastBulkLinks.map(l => l.short).join('\n');
+    const blob = new Blob([text], { type: 'text/plain' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'enlaces.txt'; a.click();
+  }
+
+  async function listLinks() {
+    const res = await fetch(`${API}/api/list?key=${getKey()}`);
+    const data = await res.json();
+    const body = document.getElementById('linksBody');
+    const table = document.getElementById('linksTable');
+    table.style.display = 'table';
+    body.innerHTML = data.links.map(l => `
+      <tr>
+        <td><span class="tag">${l.slug}</span></td>
+        <td><a href="${l.short}" target="_blank" style="color:#7c6ff5">${l.short}</a> <button class="copy-btn" onclick="navigator.clipboard.writeText('${l.short}')">Copiar</button></td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.url}">${l.url}</td>
+        <td>${l.visits || 0}</td>
+        <td>${l.created ? l.created.substring(0,10) : '-'}</td>
+        <td><button class="copy-btn danger" style="color:#e74c3c" onclick="deleteLink('${l.slug}')">Eliminar</button></td>
+      </tr>
+    `).join('');
+  }
+
+  async function deleteLink(slug) {
+    if (!confirm(`¿Eliminar /${slug}?`)) return;
+    await fetch(`${API}/api/delete/${slug}`, { method: 'DELETE', headers: { 'x-api-key': getKey() } });
+    listLinks();
+  }
+</script>
+</body>
+</html>
